@@ -11,16 +11,23 @@ public Plugin myinfo = {
 }
 
 ConVar slack_url;
+ArrayList reports;
 
 public void OnPluginStart()
 {
   slack_url = CreateConVar("sm_calladmin_slack_url", "", "Your slack url for incoming webhooks", FCVAR_PROTECTED | FCVAR_SPONLY);
+  reports = new ArrayList();
   AutoExecConfig();
 }
 
 public void CallAdmin_OnReportPost(int client, int target, const char[] reason)
 {
   DataPack notification = new DataPack();
+
+  int id = CallAdmin_GetReportID();
+  reports.Push(id);
+  notification.WriteCell(id);
+
   if(!GetPlayerNames(client, target, notification)) {
     delete notification;
     return;
@@ -91,14 +98,13 @@ void SendNotification(DataPack notification)
   char data[2048];
   CreateData(notification, data, sizeof(data));
 
-  char url[256];
-  slack_url.GetString(url, sizeof(url));
-
-  PostData(url, data);
+  PostData(data);
 }
 
 void CreateData(DataPack notification, char[] data, int length)
 {
+  int reportId = notification.ReadCell();
+
   char reporter[MAX_NAME_LENGTH];
   notification.ReadString(reporter, sizeof(reporter));
 
@@ -118,7 +124,7 @@ void CreateData(DataPack notification, char[] data, int length)
   CreateConnectLink(connectLink, sizeof(connectLink));
 
   char preText[144];
-  Format(preText, sizeof(preText), "New report! %s", connectLink);
+  Format(preText, sizeof(preText), "New report(%i)! %s", reportId, connectLink);
 
   char title[256];
   Format(title, sizeof(title), "%s reported %s", reporter, target);
@@ -154,8 +160,11 @@ void CreateConnectLink(char[] link, int length)
   Format(link, length, "<steam://connect/%s:%i|Connect to server>", ip, port);
 }
 
-void PostData(const char[] url, const char[] data)
+void PostData(const char[] data)
 {
+  char url[256];
+  slack_url.GetString(url, sizeof(url));
+
   Handle curl = curl_easy_init();
   if(curl == null) return;
 
@@ -183,4 +192,46 @@ public int RequestFinished(Handle curl, CURLcode code)
     LogError("[CallAdmin Slack] %s", error);
   }
   delete curl;
+}
+
+public void CallAdmin_OnReportHandled(int client, int id)
+{
+  int index = reports.FindValue(id);
+  if(index == -1) return;
+  reports.Erase(index);
+
+  DataPack notification = new DataPack();
+  notification.WriteCell(id);
+
+  if(!GetPlayerName(client, notification)) {
+    delete notification;
+    return;
+  }
+
+  notification.Reset();
+  SendHandledNotification(notification);
+  delete notification;
+}
+
+void SendHandledNotification(DataPack notification)
+{
+  char data[512];
+  CreateHandledData(notification, data, sizeof(data));
+
+  PostData(data);
+}
+
+void CreateHandledData(DataPack notification, char[] data, int length)
+{
+  int reportId = notification.ReadCell();
+  char admin[MAX_NAME_LENGTH];
+  notification.ReadString(admin, sizeof(admin));
+
+  Format(data,
+    length,
+    "payload={\
+      \"text\":\"*%s* handled the report #%i. :thumbsup:\",\
+      \"icon_emoji\":\":heart:\"}",
+    admin,
+    reportId);
 }
