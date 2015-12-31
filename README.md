@@ -5,3 +5,4 @@
 
 ## Build Dependencies
 - [CallAdmin.inc](https://github.com/Impact123/CallAdmin/blob/development/gameserver/calladmin.inc)
+- [AutoExecConfig.inc](https://github.com/Impact123/AutoExecConfig/blob/development/autoexecconfig.inc)

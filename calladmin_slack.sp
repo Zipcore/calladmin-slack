@@ -1,4 +1,5 @@
 #include <sourcemod>
+#include <autoexecconfig>
 #include <cURL>
 #include <calladmin>
 
@@ -15,9 +16,29 @@ ArrayList reports;
 
 public void OnPluginStart()
 {
-  slack_url = CreateConVar("sm_calladmin_slack_url", "", "Your slack url for incoming webhooks", FCVAR_PROTECTED | FCVAR_SPONLY);
   reports = new ArrayList();
-  AutoExecConfig();
+
+  AutoExecConfig_SetFile("plugin.calladmin_slack");
+  AutoExecConfig_SetCreateFile(true);
+  bool needsCleanup = CreateConfig();
+  AutoExecConfig_ExecuteFile();
+  if(needsCleanup) {
+    AutoExecConfig_CleanFile();
+  }
+}
+
+bool CreateConfig()
+{
+  slack_url = AutoExecConfig_CreateConVar("sm_calladmin_slack_url", "", "Your slack url for incoming webhooks", FCVAR_PROTECTED | FCVAR_SPONLY);
+  bool needsCleanup = ConfigWasAppended();
+
+  return needsCleanup;
+}
+
+bool ConfigWasAppended(bool previousResult = false)
+{
+  return previousResult
+    || AutoExecConfig_GetAppendResult() == AUTOEXEC_APPEND_SUCCESS;
 }
 
 public void CallAdmin_OnReportPost(int client, int target, const char[] reason)
