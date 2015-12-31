@@ -7,7 +7,7 @@ public Plugin myinfo = {
   name = "CallAdmin - Slack",
   author = "The casual trade and fun server",
   description = "Sends call admin reports to slack",
-  version = "1.0.0",
+  version = "1.1.0",
   url = "http://tf2-casual-fun.de/"
 }
 
